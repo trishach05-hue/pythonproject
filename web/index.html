@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="EduPulse - Modern Student Performance and Attendance Analyzer web application with real-time statistics, interactive charts, customizable thresholds, and report cards.">
+  <meta name="keywords" content="student performance, attendance analyzer, education dashboard, grade calculator">
+  <title>EduPulse | Student Performance & Attendance Intelligence Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Header -->
+    <header class="app-header" role="banner">
+      <div class="header-left">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <h1 class="brand-title">EduPulse <span class="badge-pro">Pro</span></h1>
+          <p class="brand-subtitle">Student Performance & Attendance Analytics Hub</p>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div id="syncStatusBadge" class="status-indicator" title="Connected to CSV storage">
+          <span class="pulse-dot"></span>
+          <span id="syncStatusText">Synced with students.csv</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="threshold-pill" title="Adjust the low-attendance warning threshold">
+          <label for="globalThresholdRange" class="threshold-label">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>Alert Threshold:</span>
+            <strong id="thresholdDisplay">75%</strong>
+          </label>
+          <input type="range" id="globalThresholdRange" min="50" max="95" value="75" step="1" aria-label="Attendance threshold percentage">
+        </div>
+
+        <button id="themeToggleBtn" class="btn-icon" aria-label="Toggle theme mode" title="Toggle theme (Light / Dark)">
+          <svg id="themeIconSun" class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg id="themeIconMoon" class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+
+        <button id="openAddModalBtn" class="btn btn-primary" id="btnAddStudentMain">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Add Student</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Quick Action Bar -->
+    <nav class="action-toolbar" aria-label="Data tools and export">
+      <div class="toolbar-left">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Search student name or roll..." aria-label="Search students">
+          <button id="clearSearchBtn" class="btn-clear" aria-label="Clear search">&times;</button>
+        </div>
+
+        <div class="filter-group">
+          <select id="gradeFilterSelect" aria-label="Filter by Grade">
+            <option value="ALL">All Grades</option>
+            <option value="A+">Grade A+ (&ge;90%)</option>
+            <option value="A">Grade A (80-89%)</option>
+            <option value="B">Grade B (70-79%)</option>
+            <option value="C">Grade C (60-69%)</option>
+            <option value="D">Grade D (50-59%)</option>
+            <option value="E">Grade E (40-49%)</option>
+            <option value="F">Grade F (&lt;40%)</option>
+          </select>
+
+          <select id="attendanceFilterSelect" aria-label="Filter by Attendance">
+            <option value="ALL">All Attendance</option>
+            <option value="LOW">⚠️ Low Attendance (&lt; Threshold)</option>
+            <option value="GOOD">✅ Good Attendance (&ge; Threshold)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="toolbar-right">
+        <button id="btnExportCsv" class="btn btn-secondary" title="Export records as CSV file">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Export CSV</span>
+        </button>
+
+        <button id="btnImportCsvModal" class="btn btn-secondary" title="Import from CSV file">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span>Import CSV</span>
+        </button>
+
+        <button id="btnResetSample" class="btn btn-secondary text-amber" title="Reset dataset to sample records">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10"/>
+            <polyline points="23 20 23 14 17 14"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+          </svg>
+          <span>Reset Sample</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content" role="main">
+      <!-- KPI Stats Grid -->
+      <section class="kpi-grid" aria-label="Key Performance Indicators">
+        <!-- Card 1: Total Students -->
+        <article class="kpi-card card-students">
+          <div class="kpi-icon-wrap">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div class="kpi-body">
+            <span class="kpi-label">Total Enrolled</span>
+            <div class="kpi-value-row">
+              <h2 id="kpiTotalStudents" class="kpi-value">0</h2>
+              <span id="kpiPassRateBadge" class="kpi-badge badge-green">100% Pass</span>
+            </div>
+            <p class="kpi-subtext">Active student records</p>
+          </div>
+        </article>
+
+        <!-- Card 2: Class Average Percentage -->
+        <article class="kpi-card card-average">
+          <div class="kpi-icon-wrap">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </div>
+          <div class="kpi-body">
+            <span class="kpi-label">Class Average Score</span>
+            <div class="kpi-value-row">
+              <h2 id="kpiClassAverage" class="kpi-value">0.0%</h2>
+              <span id="kpiAverageGradeBadge" class="kpi-badge badge-blue">Grade -</span>
+            </div>
+            <p id="kpiAverageSubtext" class="kpi-subtext">Across 5 subjects</p>
+          </div>
+        </article>
+
+        <!-- Card 3: Class Attendance Average -->
+        <article class="kpi-card card-attendance">
+          <div class="kpi-icon-wrap">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <div class="kpi-body">
+            <span class="kpi-label">Average Attendance</span>
+            <div class="kpi-value-row">
+              <h2 id="kpiAverageAttendance" class="kpi-value">0.0%</h2>
+              <span id="kpiAttendanceHealthBadge" class="kpi-badge badge-green">Healthy</span>
+            </div>
+            <p class="kpi-subtext">Classroom presence</p>
+          </div>
+        </article>
+
+        <!-- Card 4: Overall Topper -->
+        <article class="kpi-card card-topper">
+          <div class="kpi-icon-wrap">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+              <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+              <path d="M4 22h16"/>
+              <path d="M10 14.66V17c0 .55-.45 1-1 1H7"/>
+              <path d="M14 14.66V17c0 .55.45 1 1 1h2"/>
+              <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>
+            </svg>
+          </div>
+          <div class="kpi-body">
+            <span class="kpi-label">Overall Class Topper</span>
+            <div class="kpi-value-row">
+              <h2 id="kpiTopperName" class="kpi-value topper-name">None</h2>
+              <span id="kpiTopperScoreBadge" class="kpi-badge badge-purple">0 pts</span>
+            </div>
+            <p id="kpiTopperDetail" class="kpi-subtext">Highest aggregate score</p>
+          </div>
+        </article>
+
+        <!-- Card 5: Low Attendance Warnings -->
+        <article class="kpi-card card-alert" id="cardAttendanceAlerts">
+          <div class="kpi-icon-wrap">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div class="kpi-body">
+            <span class="kpi-label">Attendance Deficit</span>
+            <div class="kpi-value-row">
+              <h2 id="kpiLowAttendanceCount" class="kpi-value">0</h2>
+              <span id="kpiLowAttendanceBadge" class="kpi-badge badge-amber">&lt; 75%</span>
+            </div>
+            <p class="kpi-subtext">Requires immediate intervention</p>
+          </div>
+        </article>
+      </section>
+
+      <!-- Charts & Visual Analytics Section -->
+      <section class="analytics-section" aria-label="Visual Analytics">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title-wrap">
+              <h2 class="section-title">Interactive Analytics & Trends</h2>
+              <p class="section-desc">Dynamic visual insights across students, subjects, attendance, and grade distributions</p>
+            </div>
+
+            <div class="chart-tab-group" role="tablist">
+              <button class="chart-tab active" data-chart="performance" role="tab" id="tabPerformance">
+                <span>Student Rankings</span>
+              </button>
+              <button class="chart-tab" data-chart="subjects" role="tab" id="tabSubjects">
+                <span>Subject Mastery</span>
+              </button>
+              <button class="chart-tab" data-chart="attendance" role="tab" id="tabAttendance">
+                <span>Attendance vs Marks</span>
+              </button>
+              <button class="chart-tab" data-chart="grades" role="tab" id="tabGrades">
+                <span>Grade Breakdown</span>
+              </button>
+              <button class="chart-tab" data-chart="histogram" role="tab" id="tabHistogram">
+                <span>Score Curve</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Chart Controls Bar -->
+          <div class="chart-controls-bar">
+            <div class="chart-controls-left">
+              <div class="control-toggle" id="metricToggleGroup">
+                <button class="btn-toggle active" data-metric="total" id="btnMetricTotal">Total Marks (/500)</button>
+                <button class="btn-toggle" data-metric="percentage" id="btnMetricPct">Percentage (%)</button>
+              </div>
+
+              <div class="control-toggle" id="sortToggleGroup">
+                <button class="btn-toggle active" data-sort="desc" id="btnSortDesc">Highest First</button>
+                <button class="btn-toggle" data-sort="asc" id="btnSortAsc">Lowest First</button>
+                <button class="btn-toggle" data-sort="roll" id="btnSortRoll">By Roll #</button>
+              </div>
+            </div>
+
+            <div class="chart-controls-right">
+              <button id="btnDownloadChart" class="btn btn-ghost" title="Save this chart as PNG image">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span>Save Chart PNG</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Chart Canvas Container -->
+          <div class="chart-canvas-wrapper">
+            <canvas id="mainChartCanvas" aria-label="Visual data chart" role="img"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Subject Performance Insights Cards -->
+      <section class="subject-insights-section" aria-label="Subject Insights">
+        <div class="section-title-row">
+          <h2 class="section-title">Subject Benchmarking & Statistics</h2>
+          <span class="badge-sub">Auto-computed with standard deviations</span>
+        </div>
+        <div id="subjectCardsGrid" class="subject-grid">
+          <!-- Dynamically populated subject benchmark cards -->
+        </div>
+      </section>
+
+      <!-- Students Table Section -->
+      <section class="roster-section" aria-label="Student Roster">
+        <div class="section-card">
+          <div class="section-header table-header-flex">
+            <div>
+              <h2 class="section-title">Student Performance & Attendance Roster</h2>
+              <p class="section-desc" id="tableFilterSummary">Showing all records with real-time grade and attendance metrics</p>
+            </div>
+
+            <div class="table-actions">
+              <span id="resultsCountBadge" class="results-badge">8 students</span>
+            </div>
+          </div>
+
+          <!-- Table Container -->
+          <div class="table-responsive">
+            <table class="students-table" id="studentsTable">
+              <thead>
+                <tr>
+                  <th class="sortable" data-col="Roll" id="thRoll">
+                    <span>Roll</span>
+                    <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  </th>
+                  <th class="sortable" data-col="Name" id="thName">
+                    <span>Student Name</span>
+                    <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  </th>
+                  <th class="sortable text-center" data-col="Maths">Maths</th>
+                  <th class="sortable text-center" data-col="Science">Science</th>
+                  <th class="sortable text-center" data-col="English">English</th>
+                  <th class="sortable text-center" data-col="History">History</th>
+                  <th class="sortable text-center" data-col="Computer">Computer</th>
+                  <th class="sortable text-center" data-col="Total" id="thTotal">
+                    <span>Total</span>
+                    <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  </th>
+                  <th class="sortable text-center" data-col="Percentage" id="thPercentage">
+                    <span>Score %</span>
+                    <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  </th>
+                  <th class="sortable text-center" data-col="Grade" id="thGrade">Grade</th>
+                  <th class="sortable text-center" data-col="Attendance%" id="thAttendance">
+                    <span>Attendance</span>
+                    <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                  </th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTableBody">
+                <!-- Rows injected dynamically via app.js -->
+              </tbody>
+              <tfoot id="tableFooterStats">
+                <!-- Class average summary row -->
+              </tfoot>
+            </table>
+          </div>
+
+          <div id="tableEmptyState" class="empty-state hidden">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <h3>No matching students found</h3>
+            <p>Try clearing your search query or adjusting the grade/attendance filters.</p>
+            <button id="btnClearFilters" class="btn btn-secondary">Reset Filters</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <p><strong>EduPulse Pro</strong> &bull; Student Performance &amp; Attendance Analytics Engine</p>
+        <p class="text-muted">Calculations adhere strictly to grading boundaries (A+ &ge;90%, A &ge;80%, B &ge;70%, C &ge;60%, D &ge;50%, E &ge;40%, F &lt;40%).</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Modal 1: Add / Edit Student Modal -->
+  <dialog id="studentDialog" class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 id="modalStudentTitle" class="modal-title">Add Student Record</h2>
+          <p class="modal-subtitle">Enter academic marks and class attendance metrics</p>
+        </div>
+        <button id="btnCloseStudentModal" class="btn-close" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <form id="studentForm" method="dialog" class="modal-form">
+        <input type="hidden" id="editOriginalRoll" value="">
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="formRoll">Roll Number <span class="required">*</span></label>
+            <input type="number" id="formRoll" min="1" max="9999" required placeholder="e.g. 1" class="form-input">
+            <span id="rollErrorMsg" class="input-error-msg hidden">Roll number already exists</span>
+          </div>
+
+          <div class="form-group">
+            <label for="formName">Full Name <span class="required">*</span></label>
+            <input type="text" id="formName" required placeholder="e.g. Rahul Sharma" class="form-input">
+          </div>
+        </div>
+
+        <fieldset class="form-fieldset">
+          <legend class="fieldset-legend">Subject Marks (Out of 100)</legend>
+          <div class="subject-inputs-grid">
+            <div class="form-group">
+              <label for="formMaths">Maths</label>
+              <input type="number" id="formMaths" min="0" max="100" step="0.5" value="75" required class="form-input subject-input">
+            </div>
+            <div class="form-group">
+              <label for="formScience">Science</label>
+              <input type="number" id="formScience" min="0" max="100" step="0.5" value="75" required class="form-input subject-input">
+            </div>
+            <div class="form-group">
+              <label for="formEnglish">English</label>
+              <input type="number" id="formEnglish" min="0" max="100" step="0.5" value="75" required class="form-input subject-input">
+            </div>
+            <div class="form-group">
+              <label for="formHistory">History</label>
+              <input type="number" id="formHistory" min="0" max="100" step="0.5" value="75" required class="form-input subject-input">
+            </div>
+            <div class="form-group">
+              <label for="formComputer">Computer</label>
+              <input type="number" id="formComputer" min="0" max="100" step="0.5" value="75" required class="form-input subject-input">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="form-fieldset">
+          <legend class="fieldset-legend">Attendance Record</legend>
+          <div class="form-row two-col">
+            <div class="form-group">
+              <label for="formClassesHeld">Total Classes Held</label>
+              <input type="number" id="formClassesHeld" min="1" max="1000" value="100" required class="form-input attendance-input">
+            </div>
+            <div class="form-group">
+              <label for="formClassesAttended">Classes Attended</label>
+              <input type="number" id="formClassesAttended" min="0" max="1000" value="85" required class="form-input attendance-input">
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Live Instant Calculation Preview Inside Modal -->
+        <div class="preview-metrics-box">
+          <div class="preview-header">
+            <span>Instant Computed Projection</span>
+            <span class="live-dot-pill"><span class="pulse-dot"></span> Live</span>
+          </div>
+          <div class="preview-items-row">
+            <div class="preview-item">
+              <span class="preview-label">Total Marks</span>
+              <strong id="previewTotal" class="preview-val">375 / 500</strong>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">Percentage</span>
+              <strong id="previewPct" class="preview-val">75.0%</strong>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">Projected Grade</span>
+              <strong id="previewGrade" class="badge-grade grade-B">B</strong>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">Attendance Rate</span>
+              <strong id="previewAttendance" class="preview-val">85.0%</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btnCancelStudentModal" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="btnSaveStudent" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>Save Student Record</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Modal 2: Student Official Report Card Modal -->
+  <dialog id="reportCardDialog" class="modal-dialog modal-report">
+    <div class="modal-content report-card-sheet">
+      <div class="report-header">
+        <div class="report-org">
+          <div class="org-crest">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="org-title">DEPARTMENT OF ACADEMIC AFFAIRS</h2>
+            <p class="org-subtitle">Official Student Performance & Attendance Dossier</p>
+          </div>
+        </div>
+        <div class="report-actions-no-print">
+          <button id="btnPrintReport" class="btn btn-secondary" title="Print or save as PDF">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            <span>Print Report</span>
+          </button>
+          <button id="btnCloseReportModal" class="btn-close" aria-label="Close dialog">&times;</button>
+        </div>
+      </div>
+
+      <!-- Report Card Body -->
+      <div class="report-body" id="reportCardContent">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal 3: CSV Import Modal -->
+  <dialog id="csvImportDialog" class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title">Import Student Records (CSV)</h2>
+          <p class="modal-subtitle">Upload a valid CSV file with student marks and attendance</p>
+        </div>
+        <button id="btnCloseImportModal" class="btn-close" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <div class="modal-form">
+        <div class="import-drop-zone" id="csvDropZone">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <polyline points="9 15 12 12 15 15"/>
+          </svg>
+          <p class="drop-primary-text">Drag & drop your <code>.csv</code> file here, or click to browse</p>
+          <p class="drop-sub-text">Expected format: <code>Roll,Name,Maths,Science,English,History,Computer,ClassesHeld,ClassesAttended</code></p>
+          <input type="file" id="csvFileInput" accept=".csv,text/csv" class="file-input-hidden">
+        </div>
+
+        <div id="csvPreviewArea" class="csv-preview-area hidden">
+          <h4>File Preview: <span id="csvFileName">students.csv</span></h4>
+          <pre id="csvFileSnippet" class="code-snippet"></pre>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btnCancelImportModal" class="btn btn-secondary">Cancel</button>
+          <button type="button" id="btnConfirmImportCsv" class="btn btn-primary" disabled>
+            <span>Import & Replace</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Local Offline Chart.js bundle with CDN fallback -->
+  <script src="chart.umd.min.js"></script>
+  <script>
+    if (typeof Chart === 'undefined') {
+      const cdnScript = document.createElement('script');
+      cdnScript.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
+      document.head.appendChild(cdnScript);
+    }
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
